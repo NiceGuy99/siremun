@@ -1,0 +1,56 @@
+<?php
+
+use App\Http\Controllers\ProfileController;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use App\Http\Controllers\Pegawai\RemunerasiSayaController;
+
+Route::get('/', function () {
+    return Inertia::render('Welcome', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+        'laravelVersion' => Application::VERSION,
+        'phpVersion' => PHP_VERSION,
+    ]);
+});
+
+Route::get('/dashboard', function () {
+    return Inertia::render('Dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+Route::middleware(['auth', 'role:pegawai'])
+    ->prefix('pegawai')
+    ->name('pegawai.')
+    ->group(function () {
+        Route::get('/remunerasi-saya', [RemunerasiSayaController::class, 'index'])
+            ->name('remunerasi-saya');
+    });
+
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/perhitungan/jenis/tindakan', [App\Http\Controllers\Admin\TestHitungController::class, 'index'])->name('perhitungan.jenis.tindakan');
+
+        // Dynamic resource routes
+        Route::resource('pegawai', App\Http\Controllers\Admin\PegawaiController::class);
+        Route::resource('jabatan', App\Http\Controllers\Admin\JabatanController::class);
+        Route::resource('unit', App\Http\Controllers\Admin\UnitController::class);
+        Route::resource('grade', App\Http\Controllers\Admin\GradeController::class);
+        Route::resource('remunerasi-period', App\Http\Controllers\Admin\RemunerasiPeriodController::class);
+        Route::resource('remunerasi-detail', App\Http\Controllers\Admin\RemunerasiDetailController::class);
+        Route::resource('remunerasi-import-batch', App\Http\Controllers\Admin\RemunerasiImportBatchController::class);
+        Route::resource('master-tindakan', App\Http\Controllers\Admin\MasterTindakanController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('master-penjamin', App\Http\Controllers\Admin\MasterPenjaminController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('master-kelompok', App\Http\Controllers\Admin\MasterKelompokController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
+
+require __DIR__.'/auth.php';
