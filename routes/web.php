@@ -51,6 +51,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::resource('master-tindakan', App\Http\Controllers\Admin\MasterTindakanController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::resource('master-penjamin', App\Http\Controllers\Admin\MasterPenjaminController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::resource('master-kelompok', App\Http\Controllers\Admin\MasterKelompokController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('master-proporsi', App\Http\Controllers\Admin\MasterProporsiController::class)->only(['index', 'store']);
     });
 
 require __DIR__.'/auth.php';
