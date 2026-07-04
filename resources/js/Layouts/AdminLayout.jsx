@@ -230,11 +230,7 @@ export default function AdminLayout({ children, title }) {
                 {/* Logo Area */}
                 <div className="h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 overflow-hidden">
                     <Link href={route('admin.dashboard')} className="flex items-center gap-3">
-                        <div className="bg-amber-500 text-white p-2 rounded-lg shadow-md flex-shrink-0">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
+                        <img src="/logo.png" alt="Logo RSUD" className="w-8 h-8 object-contain flex-shrink-0 bg-white p-0.5 rounded-lg border border-gray-200/40" />
                         {sidebarOpen && (
                             <motion.span
                                 initial={{ opacity: 0, x: -10 }}
