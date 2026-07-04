@@ -20,7 +20,7 @@ class MasterKelompokController extends Controller
 
         $query = DB::connection('mysql_master')
             ->table('remunerasi_app.Master_Kelompok')
-            ->select('ID', 'NAMA_KELOMPOK', 'STATUS');
+            ->select('ID', 'NAMA_KELOMPOK', 'UNIT_COST_PERSEN', 'STATUS');
 
         // Search by ID or NAMA_KELOMPOK
         if ($search !== '') {
@@ -59,6 +59,7 @@ class MasterKelompokController extends Controller
         $validated = $request->validate([
             'ID' => 'required|integer',
             'NAMA_KELOMPOK' => 'required|string|max:100',
+            'UNIT_COST_PERSEN' => 'required|numeric|min:0|max:100',
             'STATUS' => 'required|integer|in:0,1',
         ]);
 
@@ -77,6 +78,7 @@ class MasterKelompokController extends Controller
     {
         $validated = $request->validate([
             'NAMA_KELOMPOK' => 'required|string|max:100',
+            'UNIT_COST_PERSEN' => 'required|numeric|min:0|max:100',
             'STATUS' => 'required|integer|in:0,1',
         ]);
 

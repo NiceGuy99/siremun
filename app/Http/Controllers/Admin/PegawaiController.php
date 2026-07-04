@@ -15,10 +15,26 @@ class PegawaiController extends ResourceController
     protected string $modelClass = Pegawai::class;
     protected array $relationships = ['user', 'unit', 'jabatan', 'grade'];
 
+    public function index(\Illuminate\Http\Request $request): \Inertia\Response
+    {
+        $query = $this->modelClass::query();
+        if (!empty($this->relationships)) {
+            $query->with($this->relationships);
+        }
+        $records = $query->orderBy('id', 'asc')->get();
+
+        return \Inertia\Inertia::render('Admin/Resource/Index', [
+            'resourceKey' => $this->resourceKey,
+            'resourceName' => $this->resourceName,
+            'columns' => $this->getColumns(),
+            'records' => $records,
+        ]);
+    }
+
     protected function getColumns(): array
     {
         return [
-            ['key' => 'nama', 'label' => 'Nama', 'searchable' => true, 'sortable' => true],
+            ['key' => 'user.name', 'label' => 'Nama', 'searchable' => true, 'sortable' => true, 'relation' => 'user'],
             ['key' => 'nip', 'label' => 'NIP', 'searchable' => true, 'sortable' => true],
             ['key' => 'unit.nama', 'label' => 'Unit', 'searchable' => false, 'sortable' => false, 'relation' => 'unit'],
             ['key' => 'jabatan.nama', 'label' => 'Jabatan', 'searchable' => false, 'sortable' => false, 'relation' => 'jabatan'],

@@ -12,6 +12,8 @@ class TestHitungController extends Controller
 {
     public function index(Request $request): Response
     {
+        ini_set('memory_limit', '512M');
+
         $tgl_awal = $request->query('tgl_awal', '');
         $tgl_akhir = $request->query('tgl_akhir', '');
         $ruangan_id = $request->query('ruangan_id', '');

@@ -81,6 +81,20 @@ export default function Index({ records, nextKelompokId, filters }) {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
+    // Inline unit cost state
+    const [localUnitCosts, setLocalUnitCosts] = useState({});
+
+    // Initialize local unit costs from records
+    useEffect(() => {
+        if (records) {
+            const initial = {};
+            records.forEach((r) => {
+                initial[r.ID] = r.UNIT_COST_PERSEN;
+            });
+            setLocalUnitCosts(initial);
+        }
+    }, [records]);
+
     // Modal states
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -92,6 +106,7 @@ export default function Index({ records, nextKelompokId, filters }) {
     const [formData, setFormData] = useState({
         ID: '',
         NAMA_KELOMPOK: '',
+        UNIT_COST_PERSEN: 0,
         STATUS: 1,
     });
     const [formErrors, setFormErrors] = useState({});
@@ -152,7 +167,7 @@ export default function Index({ records, nextKelompokId, filters }) {
 
     // ── CRUD handlers ──
     const resetForm = () => {
-        setFormData({ ID: nextKelompokId || '', NAMA_KELOMPOK: '', STATUS: 1 });
+        setFormData({ ID: nextKelompokId || '', NAMA_KELOMPOK: '', UNIT_COST_PERSEN: 0, STATUS: 1 });
         setFormErrors({});
     };
 
@@ -166,6 +181,7 @@ export default function Index({ records, nextKelompokId, filters }) {
         setFormData({
             ID: record.ID || '',
             NAMA_KELOMPOK: record.NAMA_KELOMPOK || '',
+            UNIT_COST_PERSEN: record.UNIT_COST_PERSEN !== undefined ? record.UNIT_COST_PERSEN : 0,
             STATUS: record.STATUS !== undefined ? record.STATUS : 1,
         });
         setFormErrors({});
@@ -197,6 +213,31 @@ export default function Index({ records, nextKelompokId, filters }) {
             onError: (errors) => setFormErrors(errors),
             onFinish: () => setFormProcessing(false),
         });
+    };
+
+    const handleInlineUpdate = (row) => {
+        const newVal = localUnitCosts[row.ID];
+        if (newVal === undefined || parseFloat(newVal) === parseFloat(row.UNIT_COST_PERSEN)) return;
+
+        router.put(
+            route('admin.master-kelompok.update', row.ID),
+            {
+                NAMA_KELOMPOK: row.NAMA_KELOMPOK,
+                STATUS: row.STATUS,
+                UNIT_COST_PERSEN: newVal,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onError: (errors) => {
+                    // Revert to original on error
+                    setLocalUnitCosts(prev => ({ ...prev, [row.ID]: row.UNIT_COST_PERSEN }));
+                    if (errors.UNIT_COST_PERSEN) {
+                        alert(errors.UNIT_COST_PERSEN);
+                    }
+                }
+            }
+        );
     };
 
     const handleDestroy = () => {
@@ -244,6 +285,25 @@ export default function Index({ records, nextKelompokId, filters }) {
                     placeholder="Masukkan nama kelompok"
                 />
                 {formErrors.NAMA_KELOMPOK && <span className="text-xs text-red-500 font-semibold">{formErrors.NAMA_KELOMPOK}</span>}
+            </div>
+
+            {/* UNIT_COST_PERSEN */}
+            <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                    Persen Unit Cost (%) <span className="text-red-500">*</span>
+                </label>
+                <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.UNIT_COST_PERSEN}
+                    onChange={(e) => setFormData({ ...formData, UNIT_COST_PERSEN: e.target.value })}
+                    className={inputClass}
+                    required
+                    placeholder="Masukkan persentase unit cost (0-100)"
+                />
+                {formErrors.UNIT_COST_PERSEN && <span className="text-xs text-red-500 font-semibold">{formErrors.UNIT_COST_PERSEN}</span>}
             </div>
 
             {/* STATUS toggle */}
@@ -366,6 +426,7 @@ export default function Index({ records, nextKelompokId, filters }) {
                                     <th className="px-5 py-3.5 whitespace-nowrap w-12">No.</th>
                                     <th className="px-5 py-3.5 whitespace-nowrap w-24">Kelompok ID</th>
                                     <th className="px-5 py-3.5 whitespace-nowrap">Nama Kelompok</th>
+                                    <th className="px-5 py-3.5 whitespace-nowrap w-36 text-center">Unit Cost (%)</th>
                                     <th className="px-5 py-3.5 whitespace-nowrap w-24 text-center">Status</th>
                                     <th className="px-5 py-3.5 text-right whitespace-nowrap w-28">Aksi</th>
                                 </tr>
@@ -385,6 +446,26 @@ export default function Index({ records, nextKelompokId, filters }) {
                                                 <td className="px-5 py-3 font-semibold text-gray-900 dark:text-white">{startIndex + idx + 1}</td>
                                                 <td className="px-5 py-3 font-mono text-xs font-semibold text-amber-600 dark:text-amber-400">{row.ID}</td>
                                                 <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">{row.NAMA_KELOMPOK}</td>
+                                                <td className="px-5 py-2 text-center w-36">
+                                                    <div className="flex items-center gap-1 justify-center">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={localUnitCosts[row.ID] !== undefined ? localUnitCosts[row.ID] : row.UNIT_COST_PERSEN}
+                                                            onChange={(e) => setLocalUnitCosts({ ...localUnitCosts, [row.ID]: e.target.value })}
+                                                            onBlur={() => handleInlineUpdate(row)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    handleInlineUpdate(row);
+                                                                }
+                                                            }}
+                                                            className="w-20 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-xs py-1 px-2.5 focus:border-amber-500 focus:ring-amber-500 dark:focus:border-amber-500 dark:focus:ring-amber-500 transition text-right font-mono font-semibold text-gray-900 dark:text-white"
+                                                        />
+                                                        <span className="text-xs text-gray-500 font-semibold">%</span>
+                                                    </div>
+                                                </td>
                                                 <td className="px-5 py-3 text-center">
                                                     {row.STATUS === 1 ? (
                                                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400">
@@ -424,7 +505,7 @@ export default function Index({ records, nextKelompokId, filters }) {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="5" className="px-5 py-16 text-center text-gray-500 dark:text-gray-400">
+                                            <td colSpan="6" className="px-5 py-16 text-center text-gray-500 dark:text-gray-400">
                                                 <div className="flex flex-col items-center justify-center gap-2">
                                                     <svg className="h-8 w-8 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

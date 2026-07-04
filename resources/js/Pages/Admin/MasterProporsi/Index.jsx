@@ -170,20 +170,6 @@ export default function Index({ kelompoks, penjamins, proporsis }) {
                 });
             });
         });
-
-        // Validate that totals do not exceed 100% (optional, but good UX to warn them)
-        let hasOverTotal = false;
-        activePenjaminIds.forEach((penjaminId) => {
-            const total = calculateColumnTotal(penjaminId);
-            if (total > 100.01) { // allow minor rounding error
-                const pName = penjamins.find(p => p.id === penjaminId)?.nama || '';
-                setFlashMsg({ type: 'error', message: `Total proporsi untuk Penjamin "${pName}" melebihi 100% (${total.toFixed(2)}%).` });
-                hasOverTotal = true;
-            }
-        });
-
-        if (hasOverTotal) return;
-
         router.post(route('admin.master-proporsi.store'), { updates }, {
             preserveScroll: true,
             onSuccess: () => {

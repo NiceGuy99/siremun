@@ -39,6 +39,7 @@ Route::middleware(['auth', 'role:admin'])
     ->group(function () {
         Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
         Route::get('/perhitungan/jenis/tindakan', [App\Http\Controllers\Admin\TestHitungController::class, 'index'])->name('perhitungan.jenis.tindakan');
+        Route::get('/perhitungan/detail/tindakan', [App\Http\Controllers\Admin\DetailTindakanController::class, 'index'])->name('perhitungan.detail.tindakan');
 
         // Dynamic resource routes
         Route::resource('pegawai', App\Http\Controllers\Admin\PegawaiController::class);

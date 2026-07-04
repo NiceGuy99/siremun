@@ -20,6 +20,7 @@ class MasterProporsiController extends Controller
         $kelompoks = DB::connection('mysql_master')
             ->table('remunerasi_app.Master_Kelompok')
             ->where('STATUS', 1)
+            ->where('ID', '!=', 11)
             ->orderBy('ID', 'asc')
             ->select('ID as id', 'NAMA_KELOMPOK as nama')
             ->get();

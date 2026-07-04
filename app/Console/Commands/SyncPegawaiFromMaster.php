@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\External\MasterPegawai;
 use App\Models\Pegawai;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Throwable;
 
 class SyncPegawaiFromMaster extends Command
@@ -70,13 +72,49 @@ class SyncPegawaiFromMaster extends Command
                 foreach ($rows as $row) {
                     try {
                         DB::transaction(function () use ($row, &$created, &$updated) {
+                            $nip = trim((string) $row->NIP);
+                            $nama = trim((string) $row->NAMA);
+                            $gelarDepan = trim((string) $row->GELAR_DEPAN);
+                            $gelarBelakang = trim((string) $row->GELAR_BELAKANG);
+
+                            $namaLengkap = trim(
+                                collect([
+                                    $gelarDepan,
+                                    $nama,
+                                    $gelarBelakang
+                                ])->filter()->implode(' ')
+                            );
+
+                            $userId = null;
+
+                            if (!empty($nip)) {
+                                $email = $nip . '@rsudsibar.com';
+                                $user = User::where('email', $email)->first();
+                                if (!$user) {
+                                    $user = new User();
+                                    $user->forceFill([
+                                        'name' => $namaLengkap,
+                                        'email' => $email,
+                                        'password' => Hash::make($nip),
+                                        'email_verified_at' => now(),
+                                    ])->save();
+                                    $user->assignRole('pegawai');
+                                } else {
+                                    $user->update([
+                                        'name' => $namaLengkap,
+                                    ]);
+                                }
+                                $userId = $user->id;
+                            }
+
                             $pegawai = Pegawai::updateOrCreate(
                                 [
                                     'source_pegawai_id' => $row->ID,
                                 ],
                                 [
-                                    'nip' => trim((string) $row->NIP),
-                                    'nama' => trim((string) $row->NAMA),
+                                    'user_id' => $userId,
+                                    'nip' => $nip,
+                                    'nama' => $nama,
                                     'panggilan' => $row->PANGGILAN,
 
                                     'gelar_depan' => $row->GELAR_DEPAN,
