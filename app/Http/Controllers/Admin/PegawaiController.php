@@ -13,7 +13,7 @@ class PegawaiController extends ResourceController
     protected string $resourceKey = 'pegawai';
     protected string $resourceName = 'Pegawai';
     protected string $modelClass = Pegawai::class;
-    protected array $relationships = ['user', 'unit', 'jabatan', 'grade'];
+    protected array $relationships = ['user.roles', 'unit', 'jabatan', 'grade'];
 
     public function index(\Illuminate\Http\Request $request): \Inertia\Response
     {
@@ -23,12 +23,91 @@ class PegawaiController extends ResourceController
         }
         $records = $query->orderBy('id', 'asc')->get();
 
+        $roleMap = [
+            'admin' => 'Admin',
+            'manajemen' => 'Manajemen',
+            'petugas' => 'Petugas',
+            'user' => 'User',
+            'pegawai' => 'User',
+        ];
+
+        $records->transform(function ($pegawai) use ($roleMap) {
+            $roleName = $pegawai->user ? ($pegawai->user->roles->first()?->name ?? '-') : '-';
+            $pegawai->user_role = $roleMap[strtolower($roleName)] ?? ucfirst($roleName);
+            return $pegawai;
+        });
+
         return \Inertia\Inertia::render('Admin/Resource/Index', [
             'resourceKey' => $this->resourceKey,
             'resourceName' => $this->resourceName,
             'columns' => $this->getColumns(),
             'records' => $records,
         ]);
+    }
+
+    public function store(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $rules = $this->getStoreRules();
+        $rules['role'] = 'nullable|string|in:admin,manajemen,petugas,user,pegawai';
+        $validated = $request->validate($rules);
+
+        $role = $validated['role'] ?? null;
+        unset($validated['role']);
+
+        $pegawai = $this->modelClass::create($validated);
+
+        if ($role && $pegawai->user_id) {
+            $user = User::find($pegawai->user_id);
+            if ($user) {
+                $user->syncRoles([$role]);
+            }
+        }
+
+        return redirect()->route("admin.{$this->resourceKey}.index")
+            ->with('success', "{$this->resourceName} berhasil ditambahkan.");
+    }
+
+    public function edit($id): \Inertia\Response
+    {
+        $record = $this->modelClass::with('user.roles')->findOrFail($id);
+        
+        // Append user's role to the record
+        $record->role = $record->user ? ($record->user->roles->first()?->name ?? '') : '';
+
+        return \Inertia\Inertia::render('Admin/Resource/Form', [
+            'resourceKey' => $this->resourceKey,
+            'resourceName' => $this->resourceName,
+            'fields' => $this->resolveFieldOptions(),
+            'data' => $record,
+            'isEdit' => true,
+        ]);
+    }
+
+    public function update(\Illuminate\Http\Request $request, $id): \Illuminate\Http\RedirectResponse
+    {
+        $pegawai = $this->modelClass::findOrFail($id);
+        $rules = $this->getUpdateRules($id);
+        $rules['role'] = 'nullable|string|in:admin,manajemen,petugas,user,pegawai';
+        $validated = $request->validate($rules);
+
+        $role = $validated['role'] ?? null;
+        unset($validated['role']);
+
+        $pegawai->update($validated);
+
+        if ($pegawai->user_id) {
+            $user = User::find($pegawai->user_id);
+            if ($user) {
+                if ($role) {
+                    $user->syncRoles([$role]);
+                } else {
+                    // Keep roles unchanged or sync role to default 'user'
+                }
+            }
+        }
+
+        return redirect()->route("admin.{$this->resourceKey}.index")
+            ->with('success', "{$this->resourceName} berhasil diperbarui.");
     }
 
     protected function getColumns(): array
@@ -39,6 +118,7 @@ class PegawaiController extends ResourceController
             ['key' => 'unit.nama', 'label' => 'Unit', 'searchable' => false, 'sortable' => false, 'relation' => 'unit'],
             ['key' => 'jabatan.nama', 'label' => 'Jabatan', 'searchable' => false, 'sortable' => false, 'relation' => 'jabatan'],
             ['key' => 'grade.nama', 'label' => 'Grade', 'searchable' => false, 'sortable' => false, 'relation' => 'grade'],
+            ['key' => 'user_role', 'label' => 'Privilege', 'searchable' => false, 'sortable' => false],
             ['key' => 'status_aktif', 'label' => 'Status', 'searchable' => false, 'sortable' => true, 'type' => 'boolean'],
         ];
     }
@@ -56,6 +136,12 @@ class PegawaiController extends ResourceController
             ['name' => 'tanggal_lahir', 'label' => 'Tanggal Lahir', 'type' => 'datetime', 'required' => false],
             ['name' => 'jenis_kelamin', 'label' => 'Jenis Kelamin (1: L, 2: P)', 'type' => 'number', 'required' => true, 'default' => 1],
             ['name' => 'user_id', 'label' => 'User Account', 'type' => 'select', 'relationship' => ['model' => User::class, 'label' => 'name'], 'required' => false],
+            ['name' => 'role', 'label' => 'Privilege (Role)', 'type' => 'select', 'options' => [
+                ['id' => 'admin', 'name' => 'Admin'],
+                ['id' => 'manajemen', 'name' => 'Manajemen'],
+                ['id' => 'petugas', 'name' => 'Petugas'],
+                ['id' => 'user', 'name' => 'User'],
+            ], 'required' => false],
             ['name' => 'unit_id', 'label' => 'Unit', 'type' => 'select', 'relationship' => ['model' => Unit::class, 'label' => 'nama'], 'required' => false],
             ['name' => 'jabatan_id', 'label' => 'Jabatan', 'type' => 'select', 'relationship' => ['model' => Jabatan::class, 'label' => 'nama'], 'required' => false],
             ['name' => 'grade_id', 'label' => 'Grade', 'type' => 'select', 'relationship' => ['model' => Grade::class, 'label' => 'nama'], 'required' => false],

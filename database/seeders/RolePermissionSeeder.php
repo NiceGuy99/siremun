@@ -36,7 +36,7 @@ class RolePermissionSeeder extends Seeder
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $manajemen = Role::firstOrCreate(['name' => 'manajemen']);
         $petugas = Role::firstOrCreate(['name' => 'petugas']);
-        $pegawai = Role::firstOrCreate(['name' => 'pegawai']);
+        $userRole = Role::firstOrCreate(['name' => 'user']);
 
         $admin->syncPermissions($permissions);
 
@@ -57,7 +57,7 @@ class RolePermissionSeeder extends Seeder
             'export_laporan',
         ]);
 
-        $pegawai->syncPermissions([
+        $userRole->syncPermissions([
             'view_own_remunerasi',
         ]);
     }

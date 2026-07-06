@@ -34,7 +34,7 @@ class GeneratePegawaiUsers extends Command
                     'password' => Hash::make($pegawai->nip),
                 ]);
 
-                $user->assignRole('pegawai');
+                $user->assignRole('user');
 
                 $pegawai->update([
                     'user_id' => $user->id,

@@ -98,7 +98,7 @@ class SyncPegawaiFromMaster extends Command
                                         'password' => Hash::make($nip),
                                         'email_verified_at' => now(),
                                     ])->save();
-                                    $user->assignRole('pegawai');
+                                    $user->assignRole('user');
                                 } else {
                                     $user->update([
                                         'name' => $namaLengkap,
