@@ -10,7 +10,7 @@ use Inertia\Response;
 
 class TestHitungController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
         ini_set('memory_limit', '512M');
 
@@ -18,6 +18,8 @@ class TestHitungController extends Controller
         $tgl_akhir = $request->query('tgl_akhir', '');
         $ruangan_id = $request->query('ruangan_id', '');
         $jaminan_id = $request->query('jaminan_id', '');
+        $norm = $request->query('norm', '');
+        $nopen = $request->query('nopen', '');
         $isSearched = $request->has('search');
 
         // Fetch Ruangan Options from master database
@@ -37,7 +39,9 @@ class TestHitungController extends Controller
                 'tgl_awal' => $tgl_awal,
                 'tgl_akhir' => $tgl_akhir,
                 'ruangan_id' => $ruangan_id,
-                'jaminan_id' => $jaminan_id
+                'jaminan_id' => $jaminan_id,
+                'norm' => $norm,
+                'nopen' => $nopen
             ]);
 
             $query = DB::connection('mysql_master')
@@ -78,6 +82,16 @@ class TestHitungController extends Controller
                 $query->where('ID_RUANGAN', $ruangan_id);
             }
 
+            // Filter by No. RM
+            if ($norm) {
+                $query->where('NORM', 'like', '%' . $norm . '%');
+            }
+
+            // Filter by Nopen
+            if ($nopen) {
+                $query->where('NOPEN', 'like', '%' . $nopen . '%');
+            }
+
             // Filter by jaminan (Penjamin)
             if ($jaminan_id) {
                 $jaminanMap = [
@@ -112,6 +126,96 @@ class TestHitungController extends Controller
 
             $records = $query->get();
             \Illuminate\Support\Facades\Log::info('Query execution records count', ['count' => count($records)]);
+
+            if ($request->query('export') === 'csv') {
+                $headers = [
+                    'Content-Type' => 'text/csv; charset=UTF-8',
+                    'Content-Disposition' => 'attachment; filename="perhitungan_jenis_tindakan_' . date('Ymd_His') . '.csv"',
+                    'Pragma' => 'no-cache',
+                    'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+                    'Expires' => '0'
+                ];
+
+                $callback = function() use ($records) {
+                    $file = fopen('php://output', 'w');
+                    fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
+
+                    fputcsv($file, [
+                        'No.',
+                        'Tanggal Bayar',
+                        'No RM',
+                        'Nopen',
+                        'NoSEP',
+                        'Nama Pasien',
+                        'Dokter DPJP',
+                        'Jaminan',
+                        'Jenis Rincian',
+                        'Tanggal Tindakan',
+                        'Nama Tindakan',
+                        'Nama Ruangan',
+                        'Tarif',
+                        'Tim Petugas Medis',
+                        'Sub Total'
+                    ]);
+
+                    $totalTarif = 0;
+                    $totalSub = 0;
+
+                    foreach ($records as $idx => $row) {
+                        $tarifVal = (double) ($row->TARIF ?? 0);
+                        $subTotalVal = (double) ($row->SUB_TOTAL ?? 0);
+                        $totalTarif += $tarifVal;
+                        $totalSub += $subTotalVal;
+
+                        $timPetugasStr = '';
+                        if (!empty($row->TIM_PETUGAS_MEDIS)) {
+                            try {
+                                $petugas = json_decode($row->TIM_PETUGAS_MEDIS, true);
+                                if (is_array($petugas) && count($petugas) > 0) {
+                                    $arr = [];
+                                    foreach ($petugas as $pm) {
+                                        $arr[] = ($pm['nama'] ?? '') . ' (' . ($pm['peran'] ?? '') . ')';
+                                    }
+                                    $timPetugasStr = implode('; ', $arr);
+                                }
+                            } catch (\Exception $e) {
+                                $timPetugasStr = '';
+                            }
+                        }
+
+                        fputcsv($file, [
+                            $idx + 1,
+                            $row->TANGGAL_PEMBAYARAN ?? '',
+                            $row->NORM ?? '',
+                            $row->NOPEN ?? '',
+                            $row->NO_SEP ?? '',
+                            $row->NAMA_PASIEN ?? '',
+                            $row->DOKTER_DPJP ?? '',
+                            $row->JAMINAN ?? '',
+                            $row->JENIS_RINCIAN ?? '',
+                            $row->TANGGAL_TINDAKAN ?? '',
+                            $row->NAMA_TINDAKAN ?? '',
+                            $row->NAMA_RUANGAN ?? '',
+                            $tarifVal,
+                            $timPetugasStr,
+                            $subTotalVal
+                        ]);
+                    }
+
+                    // Add Totals Row
+                    fputcsv($file, [
+                        'Total',
+                        '', '', '', '', '', '', '', '', '', '', '',
+                        $totalTarif,
+                        '',
+                        $totalSub
+                    ]);
+
+                    fclose($file);
+                };
+
+                return response()->stream($callback, 200, $headers);
+            }
         }
 
         return Inertia::render('Admin/Perhitungan/Jenis/Tindakan', [
@@ -122,6 +226,8 @@ class TestHitungController extends Controller
                 'tgl_akhir' => $tgl_akhir,
                 'ruangan_id' => $ruangan_id,
                 'jaminan_id' => $jaminan_id,
+                'norm' => $norm,
+                'nopen' => $nopen,
                 'isSearched' => $isSearched,
             ],
         ]);

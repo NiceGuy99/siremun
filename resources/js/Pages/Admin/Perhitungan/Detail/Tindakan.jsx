@@ -164,6 +164,20 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
         );
     };
 
+    const handleExportExcel = () => {
+        const params = new URLSearchParams({
+            tgl_awal: buildDateTime(tglAwalDate, tglAwalTime),
+            tgl_akhir: buildDateTime(tglAkhirDate, tglAkhirTime),
+            ruangan_id: ruanganId,
+            jaminan_id: jaminanId,
+            norm: norm,
+            petugas_medis: petugasMedis,
+            search: 1,
+            export: 'csv'
+        });
+        window.location.href = route('admin.perhitungan.detail.tindakan') + '?' + params.toString();
+    };
+
     const handlePageChange = (page) => {
         if (page < 1 || page > pagination.last_page) return;
         router.get(
@@ -304,7 +318,19 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                         </div>
 
                         {/* Search Button */}
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-end gap-3 pt-2">
+                            {filters.isSearched && records && records.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={handleExportExcel}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/10 transition duration-150 cursor-pointer"
+                                >
+                                    <svg className="h-4 w-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    Ekspor Excel
+                                </button>
+                            )}
                             <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 transition duration-150 disabled:opacity-50">
                                 {loading ? (
                                     <>

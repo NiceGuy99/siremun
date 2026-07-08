@@ -10,7 +10,7 @@ use Inertia\Response;
 
 class DetailTindakanController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
         ini_set('memory_limit', '512M');
 
@@ -221,6 +221,76 @@ class DetailTindakanController extends Controller
                     'total' => $subTotal,
                     'tim_petugas_medis' => $row->TIM_PETUGAS_MEDIS,
                 ];
+            }
+
+            if ($request->query('export') === 'csv') {
+                $headers = [
+                    'Content-Type' => 'text/csv; charset=UTF-8',
+                    'Content-Disposition' => 'attachment; filename="perhitungan_detail_tindakan_' . date('Ymd_His') . '.csv"',
+                    'Pragma' => 'no-cache',
+                    'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+                    'Expires' => '0'
+                ];
+
+                $callback = function() use ($calculatedRecords, $totals) {
+                    $file = fopen('php://output', 'w');
+                    fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
+
+                    fputcsv($file, [
+                        'No.',
+                        'Tgl Tindakan',
+                        'No RM',
+                        'Nama Pasien',
+                        'Penjamin',
+                        'Ruangan',
+                        'Tindakan',
+                        'Kelompok',
+                        'Unit Cost',
+                        'dr. Op',
+                        'dr. Co-op',
+                        'dr. Anes',
+                        'Medis Lain',
+                        'Investasi',
+                        'Total'
+                    ]);
+
+                    foreach ($calculatedRecords as $idx => $row) {
+                        fputcsv($file, [
+                            $idx + 1,
+                            $row['tgl'] ?? '',
+                            $row['norm'] ?? '',
+                            $row['nama'] ?? '',
+                            $row['penjamin'] ?? '',
+                            $row['ruangan'] ?? '',
+                            $row['tindakan'] ?? '',
+                            $row['kelompok'] ?? '',
+                            $row['unit_cost'] ?? 0,
+                            $row['dr_op'] ?? 0,
+                            $row['dr_coop'] ?? 0,
+                            $row['dr_anes'] ?? 0,
+                            $row['medis_lain'] ?? 0,
+                            $row['investasi'] ?? 0,
+                            $row['total'] ?? 0
+                        ]);
+                    }
+
+                    // Add Totals Row
+                    fputcsv($file, [
+                        'Total',
+                        '', '', '', '', '', '', '',
+                        $totals['unit_cost'],
+                        $totals['dr_op'],
+                        $totals['dr_coop'],
+                        $totals['dr_anes'],
+                        $totals['medis_lain'],
+                        $totals['investasi'],
+                        $totals['total']
+                    ]);
+
+                    fclose($file);
+                };
+
+                return response()->stream($callback, 200, $headers);
             }
 
             // Paginate in memory

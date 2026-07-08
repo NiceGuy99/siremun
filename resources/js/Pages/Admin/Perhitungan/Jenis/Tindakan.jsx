@@ -86,8 +86,8 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
     const [tglAkhirTime, setTglAkhirTime] = useState(parsedAkhir.time);
     const [ruanganId, setRuanganId] = useState(filters.ruangan_id || '');
     const [jaminanId, setJaminanId] = useState(filters.jaminan_id || '');
-    const [norm, setNorm] = useState('');
-    const [nopen, setNopen] = useState('');
+    const [norm, setNorm] = useState(filters.norm || '');
+    const [nopen, setNopen] = useState(filters.nopen || '');
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [showEmptyModal, setShowEmptyModal] = useState(false);
@@ -153,7 +153,11 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
         setTglAwalTime(syncAwal.time);
         setTglAkhirDate(syncAkhir.date);
         setTglAkhirTime(syncAkhir.time);
-    }, [filters.tgl_awal, filters.tgl_akhir]);
+        setRuanganId(filters.ruangan_id || '');
+        setJaminanId(filters.jaminan_id || '');
+        setNorm(filters.norm || '');
+        setNopen(filters.nopen || '');
+    }, [filters]);
 
     // Quick date presets
     const applyPreset = (presetType) => {
@@ -199,6 +203,20 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
             },
             { preserveState: true, preserveScroll: true }
         );
+    };
+
+    const handleExportExcel = () => {
+        const params = new URLSearchParams({
+            tgl_awal: buildDateTime(tglAwalDate, tglAwalTime),
+            tgl_akhir: buildDateTime(tglAkhirDate, tglAkhirTime),
+            ruangan_id: ruanganId,
+            jaminan_id: jaminanId,
+            norm: norm,
+            nopen: nopen,
+            search: 1,
+            export: 'csv'
+        });
+        window.location.href = route('admin.perhitungan.jenis.tindakan') + '?' + params.toString();
     };
 
     const formatCurrency = (val) => {
@@ -330,7 +348,19 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
                         </div>
 
                         {/* Search Button */}
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-end gap-3 pt-2">
+                            {filters.isSearched && filteredRecords && filteredRecords.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={handleExportExcel}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/10 transition duration-150 cursor-pointer"
+                                >
+                                    <svg className="h-4 w-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    Ekspor Excel
+                                </button>
+                            )}
                             <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 transition duration-150 disabled:opacity-50">
                                 {loading ? (
                                     <>
