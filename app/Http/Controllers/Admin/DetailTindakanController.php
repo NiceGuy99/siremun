@@ -236,6 +236,17 @@ class DetailTindakanController extends Controller
                     $file = fopen('php://output', 'w');
                     fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
 
+                    // Write summary at the beginning of Excel
+                    fputcsv($file, ['RINGKASAN TOTAL PENJUMLAHAN']);
+                    fputcsv($file, ['Total Unit Cost', $totals['unit_cost']]);
+                    fputcsv($file, ['Total dr. Op', $totals['dr_op']]);
+                    fputcsv($file, ['Total dr. Co-op', $totals['dr_coop']]);
+                    fputcsv($file, ['Total dr. Anes', $totals['dr_anes']]);
+                    fputcsv($file, ['Total Medis Lain', $totals['medis_lain']]);
+                    fputcsv($file, ['Total Investasi', $totals['investasi']]);
+                    fputcsv($file, ['Total Sub Total', $totals['total']]);
+                    fputcsv($file, []); // blank line separator
+
                     fputcsv($file, [
                         'No.',
                         'Tgl Tindakan',

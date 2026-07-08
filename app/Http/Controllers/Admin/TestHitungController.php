@@ -140,6 +140,20 @@ class TestHitungController extends Controller
                     $file = fopen('php://output', 'w');
                     fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
 
+                    // Calculate totals first
+                    $totalTarif = 0;
+                    $totalSub = 0;
+                    foreach ($records as $row) {
+                        $totalTarif += (double) ($row->TARIF ?? 0);
+                        $totalSub += (double) ($row->SUB_TOTAL ?? 0);
+                    }
+
+                    // Write summary at the beginning of Excel
+                    fputcsv($file, ['RINGKASAN TOTAL PENJUMLAHAN']);
+                    fputcsv($file, ['Total Tarif', $totalTarif]);
+                    fputcsv($file, ['Total Sub Total', $totalSub]);
+                    fputcsv($file, []); // blank line separator
+
                     fputcsv($file, [
                         'No.',
                         'Tanggal Bayar',
@@ -158,14 +172,9 @@ class TestHitungController extends Controller
                         'Sub Total'
                     ]);
 
-                    $totalTarif = 0;
-                    $totalSub = 0;
-
                     foreach ($records as $idx => $row) {
                         $tarifVal = (double) ($row->TARIF ?? 0);
                         $subTotalVal = (double) ($row->SUB_TOTAL ?? 0);
-                        $totalTarif += $tarifVal;
-                        $totalSub += $subTotalVal;
 
                         $timPetugasStr = '';
                         if (!empty($row->TIM_PETUGAS_MEDIS)) {
