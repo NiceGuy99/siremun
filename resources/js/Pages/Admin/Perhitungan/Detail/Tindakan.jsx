@@ -88,6 +88,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
     const [jaminanId, setJaminanId] = useState(filters.jaminan_id || '');
     const [norm, setNorm] = useState(filters.norm || '');
     const [petugasMedis, setPetugasMedis] = useState(filters.petugas_medis || '');
+    const [dokterKosong, setDokterKosong] = useState(filters.dokter_kosong === 'true' || filters.dokter_kosong === '1' || filters.dokter_kosong === true || false);
     const [loading, setLoading] = useState(false);
     const [showEmptyModal, setShowEmptyModal] = useState(false);
     
@@ -113,6 +114,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
         setJaminanId(filters.jaminan_id || '');
         setNorm(filters.norm || '');
         setPetugasMedis(filters.petugas_medis || '');
+        setDokterKosong(filters.dokter_kosong === 'true' || filters.dokter_kosong === '1' || filters.dokter_kosong === true || false);
     }, [filters]);
 
     // Quick date presets
@@ -157,6 +159,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                 jaminan_id: jaminanId,
                 norm: norm,
                 petugas_medis: petugasMedis,
+                dokter_kosong: dokterKosong ? 1 : 0,
                 search: 1,
                 page: 1
             },
@@ -172,6 +175,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
             jaminan_id: jaminanId,
             norm: norm,
             petugas_medis: petugasMedis,
+            dokter_kosong: dokterKosong ? 1 : 0,
             search: 1,
             export: 'csv'
         });
@@ -189,6 +193,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                 jaminan_id: jaminanId,
                 norm: norm,
                 petugas_medis: petugasMedis,
+                dokter_kosong: dokterKosong ? 1 : 0,
                 search: 1,
                 page: page
             },
@@ -299,15 +304,32 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
 
                             {/* Petugas Medis */}
                             <div className="flex flex-col gap-1.5">
-                                <label htmlFor="petugas_medis" className="text-xs font-semibold text-gray-600 dark:text-gray-400">Petugas Medis</label>
+                                <div className="flex justify-between items-center">
+                                    <label htmlFor="petugas_medis" className={`text-xs font-semibold ${dokterKosong ? 'text-gray-400 dark:text-gray-600' : 'text-gray-600 dark:text-gray-400'}`}>Petugas Medis</label>
+                                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                        <input
+                                            type="checkbox"
+                                            checked={dokterKosong}
+                                            onChange={(e) => {
+                                                setDokterKosong(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setPetugasMedis('');
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-amber-500 focus:ring-amber-500 dark:focus:ring-amber-500 focus:ring-offset-0 bg-white dark:bg-gray-950 transition duration-150"
+                                        />
+                                        <span>Dokter Kosong</span>
+                                    </label>
+                                </div>
                                 <input
                                     type="text"
                                     id="petugas_medis"
                                     list="petugas_medis_options"
                                     value={petugasMedis}
                                     onChange={(e) => setPetugasMedis(e.target.value)}
-                                    placeholder="Ketik nama petugas medis..."
-                                    className="block w-full rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm py-2 px-3 focus:border-amber-500 focus:ring-amber-500 dark:focus:border-amber-500 dark:focus:ring-amber-500 transition duration-150"
+                                    disabled={dokterKosong}
+                                    placeholder={dokterKosong ? "Filter dokter kosong aktif" : "Ketik nama petugas medis..."}
+                                    className="block w-full rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm py-2 px-3 focus:border-amber-500 focus:ring-amber-500 dark:focus:border-amber-500 dark:focus:ring-amber-500 transition duration-150 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:border-gray-100 dark:disabled:border-gray-800"
                                 />
                                 <datalist id="petugas_medis_options">
                                     {petugasMedisOptions && petugasMedisOptions.map((opt) => (
@@ -362,7 +384,19 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                 {/* Totals Summary Cards (at the top of the table) */}
                 {filters.isSearched && records && records.length > 0 && (
                     <div className="space-y-4">
-                        {filters.petugas_medis && (
+                        {filters.dokter_kosong ? (
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Petugas Medis Terpilih</span>
+                                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Tindakan Tanpa Petugas Medis / Dokter Kosong</h3>
+                                </div>
+                            </div>
+                        ) : filters.petugas_medis && (
                             <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -393,7 +427,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                                 <span className="text-sm font-bold text-gray-900 dark:text-white font-mono truncate">{formatCurrency(totals.dr_anes)}</span>
                             </div>
                             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex flex-col gap-1">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Medis Lain</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Tenaga Lain</span>
                                 <span className="text-sm font-bold text-gray-900 dark:text-white font-mono truncate">{formatCurrency(totals.medis_lain)}</span>
                             </div>
                             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex flex-col gap-1">
@@ -422,11 +456,12 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                                     <th className="px-3 py-3 whitespace-nowrap">Ruangan</th>
                                     <th className="px-3 py-3 whitespace-nowrap">Tindakan</th>
                                     <th className="px-3 py-3 whitespace-nowrap">Kelompok</th>
+                                    <th className="px-3 py-3 whitespace-nowrap">Petugas Medis</th>
                                     <th className="px-3 py-3 text-right whitespace-nowrap">Unit Cost</th>
                                     <th className="px-3 py-3 text-right whitespace-nowrap">dr. Op</th>
                                     <th className="px-3 py-3 text-right whitespace-nowrap">dr. Co-op</th>
                                     <th className="px-3 py-3 text-right whitespace-nowrap">dr. Anes</th>
-                                    <th className="px-3 py-3 text-right whitespace-nowrap">Medis Lain</th>
+                                    <th className="px-3 py-3 text-right whitespace-nowrap">Tenaga Lain</th>
                                     <th className="px-3 py-3 text-right whitespace-nowrap">Investasi</th>
                                     <th className="px-3 py-3 text-right whitespace-nowrap">Total</th>
                                 </tr>
@@ -447,6 +482,25 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                                                     {row.kelompok}
                                                 </span>
                                             </td>
+                                            <td className="px-3 py-2.5">
+                                                {row.tim_petugas_medis ? (() => {
+                                                    try {
+                                                        const petugas = JSON.parse(row.tim_petugas_medis);
+                                                        if (Array.isArray(petugas) && petugas.length > 0) {
+                                                            return (
+                                                                <div className="flex flex-col gap-0.5 max-w-[150px] overflow-hidden truncate">
+                                                                    {petugas.map((pm, i) => (
+                                                                        <span key={i} className="text-gray-500 dark:text-gray-400 text-[10px]" title={`${pm.nama} (${pm.peran})`}>
+                                                                            {pm.nama} <span className="text-[9px] text-gray-400">({pm.peran})</span>
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            );
+                                                        }
+                                                    } catch (e) {}
+                                                    return '-';
+                                                })() : '-'}
+                                            </td>
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-600 dark:text-gray-400">{formatCurrency(row.unit_cost)}</td>
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-600 dark:text-gray-400">{formatCurrency(row.dr_op)}</td>
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-600 dark:text-gray-400">{formatCurrency(row.dr_coop)}</td>
@@ -458,7 +512,7 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="15" className="px-4 py-16 text-center text-gray-500 dark:text-gray-400 text-sm">
+                                        <td colSpan="16" className="px-4 py-16 text-center text-gray-500 dark:text-gray-400 text-sm">
                                             {!filters.isSearched ? (
                                                 <div className="flex flex-col items-center justify-center gap-2">
                                                     <svg className="h-8 w-8 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

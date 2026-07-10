@@ -20,6 +20,7 @@ class DetailTindakanController extends Controller
         $jaminan_id = $request->query('jaminan_id', '');
         $norm = $request->query('norm', '');
         $petugas_medis = $request->query('petugas_medis', '');
+        $dokter_kosong = $request->query('dokter_kosong', '') === 'true' || $request->query('dokter_kosong', '') === '1';
         $isSearched = $request->has('search');
 
         // Fetch Ruangan Options from master database
@@ -41,10 +42,11 @@ class DetailTindakanController extends Controller
             ->get()
             ->toArray();
 
-        // Fetch all active pegawais for Petugas Medis select options
+        // Fetch all active pegawais for Petugas Medis select options with profesi = 4
         $pegawais = DB::connection('mysql')
             ->table('pegawais')
             ->where('status_aktif', 1)
+            ->where('profesi', 4)
             ->select('nama', 'gelar_depan', 'gelar_belakang')
             ->orderBy('nama')
             ->get();
@@ -127,8 +129,14 @@ class DetailTindakanController extends Controller
                 $query->where('tindakan_remunerasi.NORM', 'like', '%' . $norm . '%');
             }
 
-            // Filter by Petugas Medis
-            if ($petugas_medis) {
+            // Filter by Petugas Medis / Dokter Kosong
+            if ($dokter_kosong) {
+                $query->where(function($q) {
+                    $q->whereNull('tindakan_remunerasi.TIM_PETUGAS_MEDIS')
+                      ->orWhere('tindakan_remunerasi.TIM_PETUGAS_MEDIS', '')
+                      ->orWhere('tindakan_remunerasi.TIM_PETUGAS_MEDIS', '[]');
+                });
+            } elseif ($petugas_medis) {
                 $query->where('tindakan_remunerasi.TIM_PETUGAS_MEDIS', 'like', '%' . $petugas_medis . '%');
             }
 
@@ -242,7 +250,7 @@ class DetailTindakanController extends Controller
                     fputcsv($file, ['Total dr. Op', $totals['dr_op']]);
                     fputcsv($file, ['Total dr. Co-op', $totals['dr_coop']]);
                     fputcsv($file, ['Total dr. Anes', $totals['dr_anes']]);
-                    fputcsv($file, ['Total Medis Lain', $totals['medis_lain']]);
+                    fputcsv($file, ['Total Tenaga Lain', $totals['medis_lain']]);
                     fputcsv($file, ['Total Investasi', $totals['investasi']]);
                     fputcsv($file, ['Total Sub Total', $totals['total']]);
                     fputcsv($file, []); // blank line separator
@@ -256,16 +264,33 @@ class DetailTindakanController extends Controller
                         'Ruangan',
                         'Tindakan',
                         'Kelompok',
+                        'Petugas Medis',
                         'Unit Cost',
                         'dr. Op',
                         'dr. Co-op',
                         'dr. Anes',
-                        'Medis Lain',
+                        'Tenaga Lain',
                         'Investasi',
                         'Total'
                     ]);
 
                     foreach ($calculatedRecords as $idx => $row) {
+                        $timPetugasStr = '';
+                        if (!empty($row['tim_petugas_medis'])) {
+                            try {
+                                $petugas = json_decode($row['tim_petugas_medis'], true);
+                                if (is_array($petugas) && count($petugas) > 0) {
+                                    $arr = [];
+                                    foreach ($petugas as $pm) {
+                                        $arr[] = ($pm['nama'] ?? '') . ' (' . ($pm['peran'] ?? '') . ')';
+                                    }
+                                    $timPetugasStr = implode('; ', $arr);
+                                }
+                            } catch (\Exception $e) {
+                                $timPetugasStr = '';
+                            }
+                        }
+
                         fputcsv($file, [
                             $idx + 1,
                             $row['tgl'] ?? '',
@@ -275,6 +300,7 @@ class DetailTindakanController extends Controller
                             $row['ruangan'] ?? '',
                             $row['tindakan'] ?? '',
                             $row['kelompok'] ?? '',
+                            $timPetugasStr,
                             $row['unit_cost'] ?? 0,
                             $row['dr_op'] ?? 0,
                             $row['dr_coop'] ?? 0,
@@ -288,7 +314,7 @@ class DetailTindakanController extends Controller
                     // Add Totals Row
                     fputcsv($file, [
                         'Total',
-                        '', '', '', '', '', '', '',
+                        '', '', '', '', '', '', '', '',
                         $totals['unit_cost'],
                         $totals['dr_op'],
                         $totals['dr_coop'],
@@ -335,6 +361,7 @@ class DetailTindakanController extends Controller
                 'jaminan_id' => $jaminan_id,
                 'norm' => $norm,
                 'petugas_medis' => $petugas_medis,
+                'dokter_kosong' => $dokter_kosong,
                 'isSearched' => $isSearched,
             ],
         ]);
