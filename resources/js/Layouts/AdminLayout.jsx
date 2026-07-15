@@ -51,7 +51,7 @@ export default function AdminLayout({ children, title }) {
                 name: 'Jenis',
                 children: [
                     { name: 'Tindakan', href: route('admin.perhitungan.jenis.tindakan'), active: route().current('admin.perhitungan.jenis.tindakan') },
-                    { name: 'Akomodasi', href: '#', active: false, disabled: true },
+                    { name: 'Akomodasi', href: route('admin.perhitungan.jenis.akomodasi'), active: route().current('admin.perhitungan.jenis.akomodasi') },
                     { name: 'Farmasi', href: '#', active: false, disabled: true },
                 ],
             },
