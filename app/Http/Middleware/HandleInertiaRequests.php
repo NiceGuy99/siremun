@@ -32,7 +32,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? array_merge($request->user()->toArray(), [
+                    'is_doctor' => ($pegawai = $request->user()->pegawai) ? in_array(strtolower(trim($pegawai->gelar_depan ?? '')), ['dr.', 'drg.', 'dr', 'drg']) : false,
+                    'pegawai' => $pegawai,
+                ]) : null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

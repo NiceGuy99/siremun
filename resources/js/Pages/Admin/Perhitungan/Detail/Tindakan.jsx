@@ -543,13 +543,13 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                             </span>
 
                             <div className="flex items-center justify-center gap-1.5">
-                                <button type="button" disabled={pagination.current_page === 1} onClick={() => handlePageChange(pagination.current_page - 1)}
+                                <button type="button" disabled={pagination.current_page === 1} onClick={() => handlePageChange(1)}
                                     className={`px-3.5 py-2 text-xs border rounded-xl transition duration-150 ease-in-out font-medium ${
                                         pagination.current_page === 1
                                             ? 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 cursor-not-allowed select-none'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                                     }`}
-                                >Sebelumnya</button>
+                                >First</button>
 
                                 {getPageNumbers().map((page) => (
                                     <button key={page} type="button" onClick={() => handlePageChange(page)}
@@ -561,13 +561,13 @@ export default function Tindakan({ ruanganOptions, penjaminOptions, petugasMedis
                                     >{page}</button>
                                 ))}
 
-                                <button type="button" disabled={pagination.current_page === pagination.last_page} onClick={() => handlePageChange(pagination.current_page + 1)}
+                                <button type="button" disabled={pagination.current_page === pagination.last_page} onClick={() => handlePageChange(pagination.last_page)}
                                     className={`px-3.5 py-2 text-xs border rounded-xl transition duration-150 ease-in-out font-medium ${
                                         pagination.current_page === pagination.last_page
                                             ? 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 cursor-not-allowed select-none'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                                     }`}
-                                >Berikutnya</button>
+                                >Last</button>
                             </div>
                         </div>
                     )}

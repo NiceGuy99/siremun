@@ -14,8 +14,23 @@ Route::get('/dashboard', function () {
     if (auth()->user()->hasRole('admin')) {
         return redirect()->route('admin.dashboard');
     }
+    
+    // Check if the user is a doctor
+    $pegawai = auth()->user()->pegawai;
+    if ($pegawai && in_array(strtolower(trim($pegawai->gelar_depan ?? '')), ['dr.', 'drg.', 'dr', 'drg'])) {
+        return redirect()->route('dokter.dashboard');
+    }
+    
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware(['auth'])
+    ->prefix('dokter')
+    ->name('dokter.')
+    ->group(function () {
+        Route::get('/dashboard', [App\Http\Controllers\Dokter\DashboardController::class, 'index'])
+            ->name('dashboard');
+    });
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

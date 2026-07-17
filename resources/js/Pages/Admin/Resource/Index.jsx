@@ -272,18 +272,18 @@ export default function Index({ resourceKey, resourceName, columns, records }) {
                             </span>
                             
                             <div className="flex items-center justify-center gap-1.5">
-                                {/* Previous Page Button */}
+                                {/* First Page Button */}
                                 <button
                                     type="button"
                                     disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    onClick={() => setCurrentPage(1)}
                                     className={`px-3.5 py-2 text-xs border rounded-xl transition duration-150 ease-in-out font-medium ${
                                         currentPage === 1
                                             ? 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 cursor-not-allowed select-none'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                                     }`}
                                 >
-                                    Sebelumnya
+                                    First
                                 </button>
 
                                 {/* Page Numbers */}
@@ -302,18 +302,18 @@ export default function Index({ resourceKey, resourceName, columns, records }) {
                                     </button>
                                 ))}
 
-                                {/* Next Page Button */}
+                                {/* Last Page Button */}
                                 <button
                                     type="button"
                                     disabled={currentPage === lastPage}
-                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    onClick={() => setCurrentPage(lastPage)}
                                     className={`px-3.5 py-2 text-xs border rounded-xl transition duration-150 ease-in-out font-medium ${
                                         currentPage === lastPage
                                             ? 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 cursor-not-allowed select-none'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                                     }`}
                                 >
-                                    Berikutnya
+                                    Last
                                 </button>
                             </div>
                         </div>

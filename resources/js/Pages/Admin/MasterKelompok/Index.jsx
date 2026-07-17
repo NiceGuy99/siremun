@@ -531,13 +531,13 @@ export default function Index({ records, nextKelompokId, filters }) {
                                 <button
                                     type="button"
                                     disabled={currentPage === 1}
-                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    onClick={() => handlePageChange(1)}
                                     className={`px-3.5 py-2 text-xs border rounded-xl transition duration-150 ease-in-out font-medium ${
                                         currentPage === 1
                                             ? 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 cursor-not-allowed select-none'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                                     }`}
-                                >Sebelumnya</button>
+                                >First</button>
 
                                 {getPageNumbers().map((page) => (
                                     <button
@@ -555,13 +555,13 @@ export default function Index({ records, nextKelompokId, filters }) {
                                 <button
                                     type="button"
                                     disabled={currentPage === lastPage}
-                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    onClick={() => handlePageChange(lastPage)}
                                     className={`px-3.5 py-2 text-xs border rounded-xl transition duration-150 ease-in-out font-medium ${
                                         currentPage === lastPage
                                             ? 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 cursor-not-allowed select-none'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                                     }`}
-                                >Berikutnya</button>
+                                >Last</button>
                             </div>
                         </div>
                     )}
