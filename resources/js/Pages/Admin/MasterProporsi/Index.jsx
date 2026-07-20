@@ -178,15 +178,6 @@ export default function Index({ kelompoks, penjamins, proporsis }) {
         });
     };
 
-    // Calculate sum of proportions for a column
-    const calculateColumnTotal = (penjaminId) => {
-        const penjaminData = gridValues[penjaminId] || {};
-        return kelompoks.reduce((sum, k) => {
-            const val = parseFloat(penjaminData[k.id]) || 0;
-            return sum + val;
-        }, 0);
-    };
-
     return (
         <AdminLayout title="Master Proporsi">
             <Head title="Master Proporsi - Admin SIREMUN" />
@@ -209,7 +200,7 @@ export default function Index({ kelompoks, penjamins, proporsis }) {
                         <h2 className="text-base font-bold text-gray-900 dark:text-white mb-1">Pengaturan Proporsi Remunerasi</h2>
                         <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xl">
                             Atur persentase proporsi pembagian remunerasi berdasarkan Kelompok Remunerasi (Baris) untuk setiap Penjamin (Kolom). 
-                            Anda dapat menambahkan beberapa kolom penjamin secara berdampingan untuk memudahkan perbandingan.
+                            Khusus Anestesi (14), proporsi dihitung berdasarkan total Jasa dr. Operator (5) dan dr. Co-Op (6).
                         </p>
                     </div>
                     <button
@@ -312,36 +303,6 @@ export default function Index({ kelompoks, penjamins, proporsis }) {
                                         </tr>
                                     ))}
 
-                                    {/* ── Total Row ── */}
-                                    <tr className="bg-gray-50/50 dark:bg-gray-800/20 font-bold border-t-2 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white">
-                                        <td className="px-6 py-4 sticky left-0 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
-                                            Total Proporsi
-                                        </td>
-                                        {activePenjaminIds.map((penjaminId) => {
-                                            const total = calculateColumnTotal(penjaminId);
-                                            const isOver = total > 100.01;
-                                            const isPerfect = Math.abs(total - 100) < 0.01;
-
-                                            return (
-                                                <td key={penjaminId} className="px-6 py-4 border-r border-gray-100 dark:border-gray-800/50">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className={`font-mono text-sm ${
-                                                            isOver ? 'text-red-500' : isPerfect ? 'text-emerald-500' : 'text-amber-500'
-                                                        }`}>
-                                                            {total.toFixed(2)}%
-                                                        </span>
-                                                        {isPerfect ? (
-                                                            <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 py-0.5 px-1.5 rounded-md font-semibold uppercase tracking-wide">Pas 100%</span>
-                                                        ) : isOver ? (
-                                                            <span className="text-[10px] bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 py-0.5 px-1.5 rounded-md font-semibold uppercase tracking-wide">Melebihi</span>
-                                                        ) : total > 0 ? (
-                                                            <span className="text-[10px] bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 py-0.5 px-1.5 rounded-md font-semibold uppercase tracking-wide">Kurang</span>
-                                                        ) : null}
-                                                    </div>
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
                                 </tbody>
                             </table>
                         </div>

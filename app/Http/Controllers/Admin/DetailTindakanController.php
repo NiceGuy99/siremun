@@ -186,10 +186,14 @@ class DetailTindakanController extends Controller
                     $drCoop = 0.0;
                 }
 
-                // dr. Anes (ID_KELOMPOK = 14)
-                if ($flagKelompok === 6 || $flagKelompok === 5) {
+                // dr. Anes (ID_KELOMPOK = 14, calculated from OK Operator/Co-Op total)
+                if ($flagKelompok === 5) {
                     $proporsidrAnes = $proporsiMap[$idPenjamin][14] ?? 0.0;
-                    $drAnes = $subTotal * ($proporsidrAnes / 100);
+                    $drAnes = $drOp * ($proporsidrAnes / 100);
+                } else if ($flagKelompok === 6) {
+                    $proporsidrAnes = $proporsiMap[$idPenjamin][14] ?? 0.0;
+                    $baseDoctorFee = $drCoop > 0 ? $drCoop : $drOp;
+                    $drAnes = $baseDoctorFee * ($proporsidrAnes / 100);
                 } else {
                     $drAnes = 0.0;
                 }
