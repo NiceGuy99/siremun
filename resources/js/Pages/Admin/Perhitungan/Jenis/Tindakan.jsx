@@ -205,6 +205,22 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
         );
     };
 
+    const handleProcessAndSave = (e) => {
+        e.preventDefault();
+        router.get(
+            route('admin.perhitungan.jenis.tindakan'),
+            {
+                tgl_awal: buildDateTime(tglAwalDate, tglAwalTime),
+                tgl_akhir: buildDateTime(tglAkhirDate, tglAkhirTime),
+                ruangan_id: ruanganId,
+                jaminan_id: jaminanId,
+                search: 1,
+                sync: 1
+            },
+            { preserveState: true, preserveScroll: true }
+        );
+    };
+
     const handleExportExcel = () => {
         const params = new URLSearchParams({
             tgl_awal: buildDateTime(tglAwalDate, tglAwalTime),
@@ -361,7 +377,15 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
                                     Ekspor Excel
                                 </button>
                             )}
-                            <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 transition duration-150 disabled:opacity-50">
+                            <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-5 bg-gray-600 hover:bg-gray-700 text-white shadow-md transition duration-150 disabled:opacity-50">
+                                {loading ? 'Memproses...' : 'Tampilkan Data'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleProcessAndSave}
+                                disabled={loading}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 transition duration-150 disabled:opacity-50"
+                            >
                                 {loading ? (
                                     <>
                                         <svg className="animate-spin h-4 w-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24">
@@ -371,7 +395,12 @@ export default function Tindakan({ ruanganOptions, records, filters }) {
                                         Memproses...
                                     </>
                                 ) : (
-                                    'Cari Data'
+                                    <>
+                                        <svg className="h-4 w-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Hitung & Simpan Data
+                                    </>
                                 )}
                             </button>
                         </div>

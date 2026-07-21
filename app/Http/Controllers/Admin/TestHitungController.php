@@ -41,8 +41,21 @@ class TestHitungController extends Controller
                 'ruangan_id' => $ruangan_id,
                 'jaminan_id' => $jaminan_id,
                 'norm' => $norm,
-                'nopen' => $nopen
+                'nopen' => $nopen,
+                'sync' => $request->query('sync')
             ]);
+
+            // If sync parameter is set, calculate via procedure & insert in chunks from web app
+            if ($request->query('sync') === '1' && $tgl_awal && $tgl_akhir) {
+                try {
+                    $service = new \App\Services\TindakanRemunerasiService();
+                    $parsedAwal = date('Y-m-d H:i:s', strtotime($tgl_awal));
+                    $parsedAkhir = date('Y-m-d H:i:s', strtotime($tgl_akhir));
+                    $service->syncTindakan($parsedAwal, $parsedAkhir, $ruangan_id, $jaminan_id);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Error during syncTindakan: ' . $e->getMessage());
+                }
+            }
 
             $query = DB::connection('mysql_master')
                 ->table('remunerasi_app.tindakan_remunerasi')
