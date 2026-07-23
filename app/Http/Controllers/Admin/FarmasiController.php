@@ -12,7 +12,7 @@ class FarmasiController extends Controller
 {
     public function index(Request $request)
     {
-        ini_set('memory_limit', '512M');
+        ini_set('memory_limit', '2048M');
 
         $tglAwal = $request->query('tgl_awal', '');
         $tglAkhir = $request->query('tgl_akhir', '');
@@ -45,6 +45,29 @@ class FarmasiController extends Controller
         $records = [];
 
         if ($isSearched) {
+            \Illuminate\Support\Facades\Log::info('Farmasi Search Query Params', [
+                'tgl_awal' => $tglAwal,
+                'tgl_akhir' => $tglAkhir,
+                'ruangan_id' => $ruanganId,
+                'jaminan_id' => $jaminanId,
+                'norm' => $norm,
+                'nopen' => $nopen,
+                'sync' => $request->query('sync')
+            ]);
+
+            $syncResult = null;
+            // If sync parameter is set, calculate via procedure & insert in chunks from web app
+            if ($request->query('sync') === '1' && $tglAwal && $tglAkhir) {
+                try {
+                    $service = new \App\Services\FarmasiRemunerasiService();
+                    $parsedAwal = date('Y-m-d H:i:s', strtotime($tglAwal));
+                    $parsedAkhir = date('Y-m-d H:i:s', strtotime($tglAkhir));
+                    $syncResult = $service->syncFarmasi($parsedAwal, $parsedAkhir, $ruanganId, $jaminanId);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Error during syncFarmasi: ' . $e->getMessage());
+                }
+            }
+
             $query = DB::connection('mysql_master')
                 ->table('remunerasi_app.farmasi_remunerasi')
                 ->select(
@@ -101,52 +124,20 @@ class FarmasiController extends Controller
                 'bindings' => $query->getBindings(),
             ]);
 
-            $records = $query->get()->map(function ($row) {
-                foreach ($row as $key => $value) {
-                    if (!is_string($value)) {
-                        continue;
-                    }
-
-                    // Jika sudah valid UTF-8, tidak perlu diubah
-                    if (mb_check_encoding($value, 'UTF-8')) {
-                        continue;
-                    }
-
-                    // Coba deteksi encoding lama dari database
-                    $encoding = mb_detect_encoding(
-                        $value,
-                        ['UTF-8', 'Windows-1252', 'ISO-8859-1'],
-                        true
-                    );
-
-                    if ($encoding) {
-                        $row->{$key} = mb_convert_encoding(
-                            $value,
-                            'UTF-8',
-                            $encoding
-                        );
-                    } else {
-                        // Buang byte tidak valid sebagai fallback terakhir
-                        $row->{$key} = iconv(
-                            'UTF-8',
-                            'UTF-8//IGNORE',
-                            $value
-                        ) ?: '';
-                    }
-                }
-
-                return $row;
-            })->values();
-
             if ($request->query('export') === 'csv') {
-                return $this->exportCsv($records);
+                return $this->exportCsv(clone $query);
             }
+
+            // Cap display records to 15,000 to keep memory & JSON payload under browser limit
+            $rawRecords = (clone $query)->limit(15000)->get();
+            $records = $this->cleanUtf8($rawRecords);
         }
 
         return Inertia::render('Admin/Perhitungan/Jenis/Farmasi', [
             'ruanganOptions' => $ruanganOptions,
             'penjaminOptions' => $penjaminOptions,
             'records' => $records,
+            'syncResult' => $syncResult ?? null,
             'filters' => [
                 'tgl_awal' => $tglAwal,
                 'tgl_akhir' => $tglAkhir,
@@ -174,7 +165,7 @@ class FarmasiController extends Controller
             : date('Y-m-d H:i:s', $timestamp);
     }
 
-    private function exportCsv($records)
+    private function exportCsv($query)
     {
         $filename = 'perhitungan_jenis_farmasi_' . date('Ymd_His') . '.csv';
 
@@ -186,22 +177,19 @@ class FarmasiController extends Controller
             'Expires' => '0',
         ];
 
-        $callback = static function () use ($records) {
+        $callback = function () use ($query) {
             $file = fopen('php://output', 'w');
 
             // UTF-8 BOM agar karakter terbaca baik di Excel.
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            $totalJumlahObat = 0;
-            $totalNilai = 0;
-
-            foreach ($records as $row) {
-                $totalJumlahObat += (float) ($row->JUMLAH_OBAT ?? 0);
-                $totalNilai += (float) ($row->TOTAL ?? 0);
-            }
+            // Compute summary totals via SQL query directly
+            $totalCount = (clone $query)->count();
+            $totalJumlahObat = (float) (clone $query)->sum('JUMLAH_OBAT');
+            $totalNilai = (float) (clone $query)->sum('TOTAL');
 
             fputcsv($file, ['RINGKASAN TOTAL FARMASI']);
-            fputcsv($file, ['Total Baris Item', count($records)]);
+            fputcsv($file, ['Total Baris Item', $totalCount]);
             fputcsv($file, ['Total Jumlah Obat', $totalJumlahObat]);
             fputcsv($file, ['Total Nilai Farmasi', $totalNilai]);
             fputcsv($file, []);
@@ -227,28 +215,34 @@ class FarmasiController extends Controller
                 'Tanggal Proses',
             ]);
 
-            foreach ($records as $index => $row) {
-                fputcsv($file, [
-                    $index + 1,
-                    $row->TANGGAL ?? '',
-                    $row->NORM ?? '',
-                    $row->NOPEN ?? '',
-                    $row->SEP ?? '',
-                    $row->ID_PENJAMIN ?? '',
-                    $row->JAMINAN ?? '',
-                    $row->NAMA_PASIEN ?? '',
-                    $row->NAMA_DPJP ?? '',
-                    $row->JENIS_RINCIAN ?? '',
-                    $row->ID_BARANG ?? '',
-                    $row->NAMA_BARANG ?? '',
-                    (float) ($row->HARGA_SATUAN ?? 0),
-                    (float) ($row->JUMLAH_OBAT ?? 0),
-                    (float) ($row->TOTAL ?? 0),
-                    $row->ID_RUANGAN ?? '',
-                    $row->NAMA_RUANGAN ?? '',
-                    $row->TANGGAL_PROSES ?? '',
-                ]);
-            }
+            $index = 0;
+            // Stream in chunks of 5,000 rows to keep RAM usage minimal
+            (clone $query)->chunk(5000, function ($rows) use ($file, &$index) {
+                $cleanedRows = $this->cleanUtf8($rows);
+                foreach ($cleanedRows as $row) {
+                    $index++;
+                    fputcsv($file, [
+                        $index,
+                        $row->TANGGAL ?? '',
+                        $row->NORM ?? '',
+                        $row->NOPEN ?? '',
+                        $row->SEP ?? '',
+                        $row->ID_PENJAMIN ?? '',
+                        $row->JAMINAN ?? '',
+                        $row->NAMA_PASIEN ?? '',
+                        $row->NAMA_DPJP ?? '',
+                        $row->JENIS_RINCIAN ?? '',
+                        $row->ID_BARANG ?? '',
+                        $row->NAMA_BARANG ?? '',
+                        (float) ($row->HARGA_SATUAN ?? 0),
+                        (float) ($row->JUMLAH_OBAT ?? 0),
+                        (float) ($row->TOTAL ?? 0),
+                        $row->ID_RUANGAN ?? '',
+                        $row->NAMA_RUANGAN ?? '',
+                        $row->TANGGAL_PROSES ?? '',
+                    ]);
+                }
+            });
 
             fputcsv($file, [
                 'TOTAL',
@@ -262,5 +256,25 @@ class FarmasiController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function cleanUtf8($data)
+    {
+        if (is_string($data)) {
+            return mb_convert_encoding($data, 'UTF-8', 'UTF-8');
+        }
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->cleanUtf8($value);
+            }
+            return $data;
+        }
+        if (is_object($data)) {
+            foreach ($data as $key => $value) {
+                $data->$key = $this->cleanUtf8($value);
+            }
+            return $data;
+        }
+        return $data;
     }
 }

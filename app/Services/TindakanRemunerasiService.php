@@ -17,7 +17,7 @@ class TindakanRemunerasiService
      * @param int|null $jaminanId
      * @return array
      */
-    public function syncTindakan(string $tglAwal, string $tglAkhir, ?string $ruanganId = null, ?int $jaminanId = 0): array
+    public function syncTindakan(string $tglAwal, string $tglAkhir, ?string $ruanganId = null, $jaminanId = 0): array
     {
         ini_set('memory_limit', '1024M');
         set_time_limit(0);

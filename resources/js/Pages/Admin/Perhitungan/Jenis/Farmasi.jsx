@@ -58,7 +58,7 @@ const TimeDropdowns = ({ value, onChange }) => {
     );
 };
 
-export default function Farmasi({ ruanganOptions, penjaminOptions, records, filters }) {
+export default function Farmasi({ ruanganOptions, penjaminOptions, records, filters, syncResult }) {
     // Helper to parse date time
     const parseDateTime = (dateTimeStr, defaultTime = '00:00:00') => {
         if (!dateTimeStr) return { date: '', time: defaultTime };
@@ -93,6 +93,14 @@ export default function Farmasi({ ruanganOptions, penjaminOptions, records, filt
     const [showEmptyModal, setShowEmptyModal] = useState(false);
     const itemsPerPage = 10;
     const prevRecordsRef = useRef(records);
+
+    // Sync modal & progress states
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState(0);
+    const [syncStageText, setSyncStageText] = useState('Mengambil data kalkulasi farmasi dari database SIMRS...');
+    const [showSuccessSyncModal, setShowSuccessSyncModal] = useState(false);
+    const [syncSummaryData, setSyncSummaryData] = useState(null);
+    const intervalRef = useRef(null);
 
     // Reset page when new records are loaded
     useEffect(() => {
@@ -219,6 +227,74 @@ export default function Farmasi({ ruanganOptions, penjaminOptions, records, filt
                 search: 1
             },
             { preserveState: true, preserveScroll: true }
+        );
+    };
+
+    const handleProcessAndSave = (e) => {
+        e.preventDefault();
+
+        const tglAwalFull = buildDateTime(tglAwalDate, tglAwalTime);
+        const tglAkhirFull = buildDateTime(tglAkhirDate, tglAkhirTime);
+
+        // Find ruangan & jaminan labels for summary
+        const ruanganObj = ruanganOptions.find((r) => String(r.id) === String(ruanganId));
+        const namaRuangan = ruanganObj ? `${ruanganObj.id} - ${ruanganObj.deskripsi}` : 'Semua Ruangan';
+
+        const penjaminObj = penjaminOptions.find((p) => String(p.id) === String(jaminanId));
+        const namaJaminan = penjaminObj ? penjaminObj.nama : 'Semua Penjamin';
+
+        setSyncSummaryData({
+            tglAwal: tglAwalFull,
+            tglAkhir: tglAkhirFull,
+            ruangan: namaRuangan,
+            penjamin: namaJaminan,
+        });
+
+        setIsSyncing(true);
+        setSyncProgress(5);
+        setSyncStageText('Mengambil data kalkulasi farmasi dari database SIMRS...');
+
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => {
+            setSyncProgress((prev) => {
+                if (prev >= 92) return 92;
+                const next = prev + Math.floor(Math.random() * 3 + 2);
+                if (next < 30) {
+                    setSyncStageText('Mengambil data kalkulasi farmasi dari database SIMRS...');
+                } else if (next < 60) {
+                    setSyncStageText('Menghapus data lama & mengalokasikan memori...');
+                } else if (next < 88) {
+                    setSyncStageText('Menyimpan data farmasi ke tabel secara bertahap (batch)...');
+                } else {
+                    setSyncStageText('Finalisasi dan menyusun hasil kalkulasi...');
+                }
+                return next;
+            });
+        }, 350);
+
+        router.get(
+            route('admin.perhitungan.jenis.farmasi'),
+            {
+                tgl_awal: tglAwalFull,
+                tgl_akhir: tglAkhirFull,
+                ruangan_id: ruanganId,
+                jaminan_id: jaminanId,
+                search: 1,
+                sync: 1
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    setSyncProgress(100);
+                    setSyncStageText('Selesai!');
+                    setTimeout(() => {
+                        setIsSyncing(false);
+                        setShowSuccessSyncModal(true);
+                    }, 400);
+                }
+            }
         );
     };
 
@@ -366,7 +442,15 @@ export default function Farmasi({ ruanganOptions, penjaminOptions, records, filt
                                     Ekspor Excel
                                 </button>
                             )}
-                            <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 transition duration-150 disabled:opacity-50">
+                            <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-5 bg-gray-600 hover:bg-gray-700 text-white shadow-md transition duration-150 disabled:opacity-50">
+                                {loading ? 'Memproses...' : 'Tampilkan Data'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleProcessAndSave}
+                                disabled={loading}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 transition duration-150 disabled:opacity-50"
+                            >
                                 {loading ? (
                                     <>
                                         <svg className="animate-spin h-4 w-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24">
@@ -376,7 +460,12 @@ export default function Farmasi({ ruanganOptions, penjaminOptions, records, filt
                                         Memproses...
                                     </>
                                 ) : (
-                                    'Cari Data'
+                                    <>
+                                        <svg className="h-4 w-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Hitung & Simpan Data
+                                    </>
                                 )}
                             </button>
                         </div>
@@ -602,6 +691,121 @@ export default function Farmasi({ ruanganOptions, penjaminOptions, records, filt
                             className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-2.5 px-8 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/10 transition duration-150 focus:outline-none"
                         >
                             Mengerti
+                        </button>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* ── Modal 1: Progress Syncing (Full Overlay + Disable interactions) ── */}
+            {isSyncing && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md cursor-wait select-none pointer-events-auto">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 p-8 max-w-md w-full text-center z-10 space-y-6"
+                    >
+                        {/* Glowing Spinning Ring */}
+                        <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+                            <div className="absolute inset-0 rounded-full border-4 border-amber-500/20 dark:border-amber-500/10"></div>
+                            <div className="absolute inset-0 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
+                            <svg className="w-9 h-9 text-amber-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </div>
+
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Proses Hitung & Simpan Data</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sedang memproses kalkulasi remunerasi item farmasi / obat</p>
+                        </div>
+
+                        {/* Progress Bar & Percentage */}
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center text-xs font-semibold">
+                                <span className="text-gray-600 dark:text-gray-400">Proses</span>
+                                <span className="font-mono font-bold text-amber-500 text-sm">{Math.floor(syncProgress)}%</span>
+                            </div>
+                            <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-200/50 dark:border-gray-700/50">
+                                <motion.div
+                                    className="h-full bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-500 rounded-full"
+                                    animate={{ width: `${syncProgress}%` }}
+                                    transition={{ ease: 'easeOut', duration: 0.3 }}
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium animate-pulse pt-1">
+                                {syncStageText}
+                            </p>
+                        </div>
+
+                        {/* Lock warning note */}
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200/60 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-400 font-medium flex items-center justify-center gap-2">
+                            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Mohon tidak menutup atau menyegarkan halaman ini.
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* ── Modal 2: Success Sync Finished ── */}
+            {showSuccessSyncModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm select-none pointer-events-auto">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.85, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+                        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 p-8 max-w-md w-full text-center z-10 space-y-6"
+                    >
+                        {/* Success Animated Badge */}
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', damping: 15, stiffness: 250, delay: 0.1 }}
+                            className="mx-auto w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shadow-lg shadow-emerald-500/10"
+                        >
+                            <svg className="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </motion.div>
+
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Hitung & Simpan Data Selesai</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Proses hitung dan simpan data remunerasi farmasi telah berhasil diproses.</p>
+                        </div>
+
+                        {/* Metadata Details Card */}
+                        <div className="bg-gray-50 dark:bg-gray-950/60 rounded-2xl p-4 border border-gray-200/80 dark:border-gray-800 text-left space-y-2.5 text-xs">
+                            <div className="flex justify-between items-start pb-2 border-b border-gray-200/60 dark:border-gray-800">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">Rentang Waktu:</span>
+                                <span className="font-semibold text-gray-900 dark:text-white text-right font-mono text-[11px]">
+                                    {syncSummaryData?.tglAwal || '-'} <br /> s/d <br /> {syncSummaryData?.tglAkhir || '-'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center pb-2 border-b border-gray-200/60 dark:border-gray-800">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">Ruangan:</span>
+                                <span className="font-semibold text-gray-900 dark:text-white text-right truncate max-w-[200px]">
+                                    {syncSummaryData?.ruangan || 'Semua Ruangan'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center pb-2 border-b border-gray-200/60 dark:border-gray-800">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">Penjamin:</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-right truncate max-w-[200px]">
+                                    {syncSummaryData?.penjamin || 'Semua Penjamin'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-0.5">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">Total Data Tersimpan:</span>
+                                <span className="font-mono font-bold text-amber-500 text-sm">
+                                    {(syncResult?.inserted_count ?? records?.length ?? 0).toLocaleString('id-ID')} Record
+                                </span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowSuccessSyncModal(false)}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-3 px-6 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition duration-150 focus:outline-none"
+                        >
+                            Selesai & Tutup
                         </button>
                     </motion.div>
                 </div>

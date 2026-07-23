@@ -12,7 +12,7 @@ class TestHitungController extends Controller
 {
     public function index(Request $request)
     {
-        ini_set('memory_limit', '512M');
+        ini_set('memory_limit', '2048M');
 
         $tgl_awal = $request->query('tgl_awal', '');
         $tgl_akhir = $request->query('tgl_akhir', '');
@@ -45,13 +45,16 @@ class TestHitungController extends Controller
                 'sync' => $request->query('sync')
             ]);
 
+            $syncResult = null;
             // If sync parameter is set, calculate via procedure & insert in chunks from web app
             if ($request->query('sync') === '1' && $tgl_awal && $tgl_akhir) {
                 try {
                     $service = new \App\Services\TindakanRemunerasiService();
                     $parsedAwal = date('Y-m-d H:i:s', strtotime($tgl_awal));
                     $parsedAkhir = date('Y-m-d H:i:s', strtotime($tgl_akhir));
-                    $service->syncTindakan($parsedAwal, $parsedAkhir, $ruangan_id, $jaminan_id);
+                    $cleanRuangan = !empty($ruangan_id) ? $ruangan_id : null;
+                    $cleanJaminan = (!empty($jaminan_id) && $jaminan_id !== '0') ? (int)$jaminan_id : 0;
+                    $syncResult = $service->syncTindakan($parsedAwal, $parsedAkhir, $cleanRuangan, $cleanJaminan);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::error('Error during syncTindakan: ' . $e->getMessage());
                 }
@@ -137,9 +140,6 @@ class TestHitungController extends Controller
                 'bindings' => $query->getBindings()
             ]);
 
-            $records = $query->get();
-            \Illuminate\Support\Facades\Log::info('Query execution records count', ['count' => count($records)]);
-
             if ($request->query('export') === 'csv') {
                 $headers = [
                     'Content-Type' => 'text/csv; charset=UTF-8',
@@ -149,17 +149,13 @@ class TestHitungController extends Controller
                     'Expires' => '0'
                 ];
 
-                $callback = function() use ($records) {
+                $callback = function() use ($query) {
                     $file = fopen('php://output', 'w');
                     fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
 
-                    // Calculate totals first
-                    $totalTarif = 0;
-                    $totalSub = 0;
-                    foreach ($records as $row) {
-                        $totalTarif += (double) ($row->TARIF ?? 0);
-                        $totalSub += (double) ($row->SUB_TOTAL ?? 0);
-                    }
+                    // Calculate totals via DB query first
+                    $totalTarif = (double) (clone $query)->sum('TARIF');
+                    $totalSub = (double) (clone $query)->sum('SUB_TOTAL');
 
                     // Write summary at the beginning of Excel
                     fputcsv($file, ['RINGKASAN TOTAL PENJUMLAHAN']);
@@ -185,44 +181,49 @@ class TestHitungController extends Controller
                         'Sub Total'
                     ]);
 
-                    foreach ($records as $idx => $row) {
-                        $tarifVal = (double) ($row->TARIF ?? 0);
-                        $subTotalVal = (double) ($row->SUB_TOTAL ?? 0);
+                    $idx = 0;
+                    (clone $query)->chunk(5000, function ($rows) use ($file, &$idx) {
+                        $cleanedRows = $this->cleanUtf8($rows);
+                        foreach ($cleanedRows as $row) {
+                            $idx++;
+                            $tarifVal = (double) ($row->TARIF ?? 0);
+                            $subTotalVal = (double) ($row->SUB_TOTAL ?? 0);
 
-                        $timPetugasStr = '';
-                        if (!empty($row->TIM_PETUGAS_MEDIS)) {
-                            try {
-                                $petugas = json_decode($row->TIM_PETUGAS_MEDIS, true);
-                                if (is_array($petugas) && count($petugas) > 0) {
-                                    $arr = [];
-                                    foreach ($petugas as $pm) {
-                                        $arr[] = ($pm['nama'] ?? '') . ' (' . ($pm['peran'] ?? '') . ')';
+                            $timPetugasStr = '';
+                            if (!empty($row->TIM_PETUGAS_MEDIS)) {
+                                try {
+                                    $petugas = json_decode($row->TIM_PETUGAS_MEDIS, true);
+                                    if (is_array($petugas) && count($petugas) > 0) {
+                                        $arr = [];
+                                        foreach ($petugas as $pm) {
+                                            $arr[] = ($pm['nama'] ?? '') . ' (' . ($pm['peran'] ?? '') . ')';
+                                        }
+                                        $timPetugasStr = implode('; ', $arr);
                                     }
-                                    $timPetugasStr = implode('; ', $arr);
+                                } catch (\Exception $e) {
+                                    $timPetugasStr = '';
                                 }
-                            } catch (\Exception $e) {
-                                $timPetugasStr = '';
                             }
-                        }
 
-                        fputcsv($file, [
-                            $idx + 1,
-                            $row->TANGGAL_PEMBAYARAN ?? '',
-                            $row->NORM ?? '',
-                            $row->NOPEN ?? '',
-                            $row->NO_SEP ?? '',
-                            $row->NAMA_PASIEN ?? '',
-                            $row->DOKTER_DPJP ?? '',
-                            $row->JAMINAN ?? '',
-                            $row->JENIS_RINCIAN ?? '',
-                            $row->TANGGAL_TINDAKAN ?? '',
-                            $row->NAMA_TINDAKAN ?? '',
-                            $row->NAMA_RUANGAN ?? '',
-                            $tarifVal,
-                            $timPetugasStr,
-                            $subTotalVal
-                        ]);
-                    }
+                            fputcsv($file, [
+                                $idx,
+                                $row->TANGGAL_PEMBAYARAN ?? '',
+                                $row->NORM ?? '',
+                                $row->NOPEN ?? '',
+                                $row->NO_SEP ?? '',
+                                $row->NAMA_PASIEN ?? '',
+                                $row->DOKTER_DPJP ?? '',
+                                $row->JAMINAN ?? '',
+                                $row->JENIS_RINCIAN ?? '',
+                                $row->TANGGAL_TINDAKAN ?? '',
+                                $row->NAMA_TINDAKAN ?? '',
+                                $row->NAMA_RUANGAN ?? '',
+                                $tarifVal,
+                                $timPetugasStr,
+                                $subTotalVal
+                            ]);
+                        }
+                    });
 
                     // Add Totals Row
                     fputcsv($file, [
@@ -238,11 +239,17 @@ class TestHitungController extends Controller
 
                 return response()->stream($callback, 200, $headers);
             }
+
+            // Cap display records to 15,000 to keep memory & JSON payload under browser limit
+            $rawRecords = (clone $query)->limit(15000)->get();
+            $records = $this->cleanUtf8($rawRecords);
+            \Illuminate\Support\Facades\Log::info('Query execution records count', ['count' => count($records)]);
         }
 
         return Inertia::render('Admin/Perhitungan/Jenis/Tindakan', [
-            'ruanganOptions' => $ruanganOptions,
+            'ruanganOptions' => $this->cleanUtf8($ruanganOptions),
             'records' => $records,
+            'syncResult' => $syncResult ?? null,
             'filters' => [
                 'tgl_awal' => $tgl_awal,
                 'tgl_akhir' => $tgl_akhir,
@@ -253,5 +260,25 @@ class TestHitungController extends Controller
                 'isSearched' => $isSearched,
             ],
         ]);
+    }
+
+    private function cleanUtf8($data)
+    {
+        if (is_string($data)) {
+            return mb_convert_encoding($data, 'UTF-8', 'UTF-8');
+        }
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->cleanUtf8($value);
+            }
+            return $data;
+        }
+        if (is_object($data)) {
+            foreach ($data as $key => $value) {
+                $data->$key = $this->cleanUtf8($value);
+            }
+            return $data;
+        }
+        return $data;
     }
 }
